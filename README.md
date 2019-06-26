@@ -1,0 +1,2 @@
+# R5T.Code.VisualStudio.SolutionFile.Types
+A Types library for the R5T.Code.VisualStudio.SolutionFile library.
