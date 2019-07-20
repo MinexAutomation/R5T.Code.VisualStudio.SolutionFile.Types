@@ -1,11 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
 
+using R5T.Code.VisualStudio.IO;
+
 
 namespace R5T.Code.VisualStudio.Model
 {
     public class SolutionFile
     {
+        #region Static
+
+        public static SolutionFile Load(string solutionFilePath)
+        {
+            var serializer = new SolutionFileSerializer();
+
+            var solutionFile = serializer.Deserialize(solutionFilePath);
+            return solutionFile;
+        }
+
+        public static void Save(string solutionFilePath, SolutionFile solutionFile)
+        {
+            var serializer = new SolutionFileSerializer();
+
+            serializer.Serialize(solutionFilePath, solutionFile);
+        }
+
+        #endregion
+
+
         /// <summary>
         /// Example: the "12.00" in "Microsoft Visual Studio Solution File, Format Version 12.00".
         /// </summary>
