@@ -4,7 +4,7 @@ using System.Linq;
 using R5T.Code.VisualStudio.Model.SolutionFileSpecific;
 
 using PathUtilities = R5T.NetStandard.IO.Paths.Utilities;
-using VsPathUtilities = R5T.Code.VisualStudio.IO.Utilities;
+using VsPathUtilities = R5T.Code.VisualStudio.IO.StringUtilities;
 
 
 namespace R5T.Code.VisualStudio.Model

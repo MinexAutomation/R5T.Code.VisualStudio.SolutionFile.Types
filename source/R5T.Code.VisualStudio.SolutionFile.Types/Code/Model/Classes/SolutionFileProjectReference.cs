@@ -2,7 +2,7 @@
 
 using PathUtilities = R5T.NetStandard.IO.Paths.Utilities;
 using SolutionFileConstants = R5T.Code.VisualStudio.Model.SolutionFileSpecific.Constants;
-using VsPathUtilities = R5T.Code.VisualStudio.IO.Utilities;
+using VsPathUtilities = R5T.Code.VisualStudio.IO.StringUtilities;
 
 
 namespace R5T.Code.VisualStudio.Model
