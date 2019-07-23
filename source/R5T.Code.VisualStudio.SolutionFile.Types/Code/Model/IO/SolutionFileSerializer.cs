@@ -28,7 +28,7 @@ namespace R5T.Code.VisualStudio.IO
         public void Serialize(string filePath, SolutionFile obj, bool overwrite = true)
         {
             using (var fileStream = FileStreamHelper.NewWrite(filePath, overwrite))
-            using (var textWriter = StreamWriterHelper.NewLeaveOpen(fileStream))
+            using (var textWriter = StreamWriterHelper.NewLeaveOpenAddBOM(fileStream))
             {
                 var solutionFileTextSerialializer = new SolutionFileTextSerializer();
 

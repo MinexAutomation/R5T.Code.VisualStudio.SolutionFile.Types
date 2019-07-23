@@ -1,5 +1,9 @@
 ﻿using System;
 
+using PathUtilities = R5T.NetStandard.IO.Paths.Utilities;
+using SolutionFileConstants = R5T.Code.VisualStudio.Model.SolutionFileSpecific.Constants;
+using VsPathUtilities = R5T.Code.VisualStudio.IO.Utilities;
+
 
 namespace R5T.Code.VisualStudio.Model
 {
@@ -10,6 +14,35 @@ namespace R5T.Code.VisualStudio.Model
     /// </summary>
     public class SolutionFileProjectReference
     {
+        #region Static
+
+        public static SolutionFileProjectReference NewNetCoreOrStandardFromProjectFileRelativePath(string projectName, string projectFileRelativePathValue)
+        {
+            var solutionFileProjectReference = new SolutionFileProjectReference
+            {
+                ProjectGUID = Guid.NewGuid(),
+                ProjectName = projectName,
+                ProjectFileRelativePathValue = projectFileRelativePathValue,
+                ProjectTypeGUID = SolutionFileConstants.NetStandardLibraryProjectTypeGUID
+            };
+            return solutionFileProjectReference;
+        }
+
+        public static SolutionFileProjectReference NewNetCoreOrStandard(string solutionFilePath, string projectFilePath)
+        {
+            var solutionDirectoryPath = PathUtilities.GetDirectoryPath(solutionFilePath);
+
+            var solutionDirectoryToDependencyProjectRelativeFilePath = PathUtilities.GetRelativePathDirectoryToFile(solutionDirectoryPath, projectFilePath);
+
+            var projectName = VsPathUtilities.GetProjectName(projectFilePath);
+
+            var solutionFileProjectReference = SolutionFileProjectReference.NewNetCoreOrStandardFromProjectFileRelativePath(projectName, solutionDirectoryToDependencyProjectRelativeFilePath);
+            return solutionFileProjectReference;
+        }
+
+        #endregion
+
+
         public Guid ProjectTypeGUID { get; set; }
         public string ProjectName { get; set; }
         public string ProjectFileRelativePathValue { get; set; }

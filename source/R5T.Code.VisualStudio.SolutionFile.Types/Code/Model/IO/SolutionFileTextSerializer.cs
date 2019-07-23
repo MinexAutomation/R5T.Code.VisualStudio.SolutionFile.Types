@@ -1,12 +1,16 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
+using R5T.NetStandard;
 using R5T.NetStandard.IO.Serialization;
 
 using R5T.Code.VisualStudio.Model;
 using R5T.Code.VisualStudio.Model.SolutionFileSpecific;
+
+using SolutionUtilities = R5T.Code.VisualStudio.Model.SolutionFileSpecific.Utilities;
 
 
 namespace R5T.Code.VisualStudio.IO
@@ -41,7 +45,50 @@ namespace R5T.Code.VisualStudio.IO
             tabinatedWriter.WriteLine("Global");
 
             tabinatedWriter.IncreaseTabination();
-            foreach (var globalSection in solutionFile.GlobalSections)
+
+            var globalSections = new List<ISolutionFileGlobalSection>(solutionFile.GlobalSections);
+            var globalSectionsInOrder = new List<ISolutionFileGlobalSection>();
+
+            // SolutionConfigurationPlatforms.
+            var solutionConfigurationPlatforms = globalSections.GetSolutionConfigurationPlatformsGlobalSection(); // Must have.
+
+            globalSectionsInOrder.Add(solutionConfigurationPlatforms);
+            globalSections.Remove(solutionConfigurationPlatforms);
+
+            // ProjectConfigurationPlatforms.
+            var hasProjectConfigurationPlatforms = globalSections.HasProjectConfigurationPlatformsGlobalSection(out var projectConfigurationPlatforms); // Can have.
+            if(hasProjectConfigurationPlatforms)
+            {
+                globalSectionsInOrder.Add(projectConfigurationPlatforms);
+                globalSections.Remove(projectConfigurationPlatforms);
+            }
+
+            // Solution properties.
+            var solutionProperties = globalSections.GetGlobalSectionByName<GeneralSolutionFileGlobalSection>(Constants.SolutionPropertiesSolutionGlobalSectionName); // Must have.
+
+            globalSectionsInOrder.Add(solutionProperties);
+            globalSections.Remove(solutionProperties);
+
+            // Nested projects.
+            var hasNestedProjects = globalSections.HasNestedProjectsGlobalSection(out var nestedProjects); // Can have.
+            if (hasNestedProjects)
+            {
+                globalSectionsInOrder.Add(nestedProjects);
+                globalSections.Remove(nestedProjects);
+            }
+
+            // Extensibility globals.
+            var hasExtensibilityGlobals = globalSections.HasGlobalSectionByName<GeneralSolutionFileGlobalSection>(Constants.ExtensibilityGlobalsSolutionGlobalSectionName, out var extensibilityGlobals); // Can have.
+            if(hasExtensibilityGlobals)
+            {
+                globalSectionsInOrder.Add(extensibilityGlobals);
+                globalSections.Remove(extensibilityGlobals);
+            }
+
+            // All others that remain.
+            globalSectionsInOrder.AddRange(globalSections);
+
+            foreach (var globalSection in globalSectionsInOrder)
             {
                 if(globalSection is ISerializableSolutionFileGlobalSection serializableGlobalSection)
                 {
@@ -59,7 +106,7 @@ namespace R5T.Code.VisualStudio.IO
 
         private static void SerializeGlobal(TabinatedWriter writer, ISerializableSolutionFileGlobalSection serializableGlobalSection)
         {
-            var globalSectionLine = $"GlobalSection({serializableGlobalSection.Name}) = {Utilities.ToStringStandard(serializableGlobalSection.PreOrPostSolution)}";
+            var globalSectionLine = $"GlobalSection({serializableGlobalSection.Name}) = {SolutionUtilities.ToStringStandard(serializableGlobalSection.PreOrPostSolution)}";
             writer.WriteLine(globalSectionLine);
 
             writer.IncreaseTabination();
@@ -76,7 +123,7 @@ namespace R5T.Code.VisualStudio.IO
         {
             foreach (var solutionProjectFileReference in solutionFile.SolutionFileProjectReferences)
             {
-                var projectLine = $@"Project(""{solutionProjectFileReference.ProjectTypeGUID.ToString("B").ToUpperInvariant()}"") = ""{solutionProjectFileReference.ProjectName}"", ""{solutionProjectFileReference.ProjectFileRelativePathValue}"", ""{solutionProjectFileReference.ProjectGUID.ToString("B").ToUpperInvariant()}""";
+                var projectLine = $@"Project(""{solutionProjectFileReference.ProjectTypeGUID.ToStringSolutionFileFormat()}"") = ""{solutionProjectFileReference.ProjectName}"", ""{solutionProjectFileReference.ProjectFileRelativePathValue}"", ""{solutionProjectFileReference.ProjectGUID.ToString("B").ToUpperInvariant()}""";
                 writer.WriteLine(projectLine);
 
                 writer.WriteLine("EndProject");
@@ -112,25 +159,131 @@ namespace R5T.Code.VisualStudio.IO
             var sectionName = globalSectionMatches[0].Value.TrimStart('(').TrimEnd(')');
             var preOrPostSolutionStr = globalSectionMatches[1].Value;
 
-            var preOrPostSolution = Utilities.ToPreOrPostSolution(preOrPostSolutionStr);
+            var preOrPostSolution = SolutionUtilities.ToPreOrPostSolution(preOrPostSolutionStr);
 
             ISolutionFileGlobalSection globalSection;
-            if (sectionName == NestedProjectsSolutionFileGlobalSection.NestedProjectsGlobalSectionName)
+            switch(sectionName)
             {
-                globalSection = SolutionFileTextSerializer.DeserializeNestedProjectsGlobalSection(reader, ref currentLine, sectionName, preOrPostSolution);
-            }
-            else
-            {
-                globalSection = SolutionFileTextSerializer.DeserializeGeneralGlobal(reader, ref currentLine, sectionName, preOrPostSolution);
+                case SolutionConfigurationPlatformsGlobalSection.SolutionFileGlobalSectionName:
+                    globalSection = SolutionFileTextSerializer.DeserializeSolutionConfigurationPlatformsGlobalSection(reader, ref currentLine, preOrPostSolution);
+                    break;
+
+                case ProjectConfigurationPlatformsGlobalSection.SolutionFileGlobalSectionName:
+                    globalSection = SolutionFileTextSerializer.DeserializeProjectConfigurationPlatformsGlobalSection(reader, ref currentLine, preOrPostSolution);
+                    break;
+
+                case NestedProjectsSolutionFileGlobalSection.SolutionFileGlobalSectionName:
+                    globalSection = SolutionFileTextSerializer.DeserializeNestedProjectsGlobalSection(reader, ref currentLine, preOrPostSolution);
+                    break;
+
+                default:
+                    globalSection = SolutionFileTextSerializer.DeserializeGeneralGlobal(reader, ref currentLine, sectionName, preOrPostSolution);
+                    break;
             }
             solutionFile.GlobalSections.Add(globalSection);
         }
 
-        private static NestedProjectsSolutionFileGlobalSection DeserializeNestedProjectsGlobalSection(TextReader reader, ref string currentLine, string sectionName, PreOrPostSolution preOrPostSolution)
+        private static ProjectConfigurationPlatformsGlobalSection DeserializeProjectConfigurationPlatformsGlobalSection(TextReader reader, ref string currentLine, PreOrPostSolution preOrPostSolution)
+        {
+            var projectConfigurationPlatformsGlobalSection = new ProjectConfigurationPlatformsGlobalSection
+            {
+                Name = ProjectConfigurationPlatformsGlobalSection.SolutionFileGlobalSectionName,
+                PreOrPostSolution = preOrPostSolution
+            };
+
+            currentLine = reader.ReadLine().Trim();
+
+            while (!SolutionFileTextSerializer.GlobalSectionEndRegex.IsMatch(currentLine))
+            {
+                var assignmentTokens = currentLine.Split("=");
+
+                var targetToken = assignmentTokens[0].Trim();
+                var valueToken = assignmentTokens[1].Trim();
+
+                var projectBuildConfigurationTokens = targetToken.Split(new string[] { Constants.SolutionProjectConfigurationTokenSeparator }, 3, StringSplitOptions.None);
+
+                var projectGuidToken = projectBuildConfigurationTokens[0];
+                var solutionBuildConfigurationToken = projectBuildConfigurationTokens[1];
+                var indicatorToken = projectBuildConfigurationTokens[2];
+
+                var projectGUID = Guid.Parse(projectGuidToken);
+                var solutionBuildConfiguration = SolutionFileTextSerializer.DeserializeSolutionBuildConfiguration(solutionBuildConfigurationToken);
+                var indicator = SolutionUtilities.ToProjectConfigurationIndicator(indicatorToken);
+                var mappedSolutionBuildConfiguration = SolutionFileTextSerializer.DeserializeSolutionBuildConfiguration(valueToken);
+
+                var projectBuildConfigurationMapping = new ProjectBuildConfigurationMapping
+                {
+                    ProjectGUID = projectGUID,
+                    SolutionBuildConfiguration = solutionBuildConfiguration,
+                    ProjectConfigurationIndicator = indicator,
+                    MappedSolutionBuildConfiguration = mappedSolutionBuildConfiguration,
+                };
+
+                projectConfigurationPlatformsGlobalSection.ProjectBuildConfigurationMappings.Add(projectBuildConfigurationMapping);
+
+                currentLine = reader.ReadLine().Trim();
+            }
+
+            return projectConfigurationPlatformsGlobalSection;
+        }
+
+        private static SolutionConfigurationPlatformsGlobalSection DeserializeSolutionConfigurationPlatformsGlobalSection(TextReader reader, ref string currentLine, PreOrPostSolution preOrPostSolution)
+        {
+            var solutionConfigurationPlatformsGlobalSection = new SolutionConfigurationPlatformsGlobalSection
+            {
+                Name = SolutionConfigurationPlatformsGlobalSection.SolutionFileGlobalSectionName,
+                PreOrPostSolution = preOrPostSolution
+            };
+
+            currentLine = reader.ReadLine().Trim();
+
+            while (!SolutionFileTextSerializer.GlobalSectionEndRegex.IsMatch(currentLine))
+            {
+                var assignmentTokens = currentLine.Split("=");
+
+                var targetToken = assignmentTokens[0].Trim();
+                var valueToken = assignmentTokens[1].Trim();
+
+                var solutionBuildConfiguration = SolutionFileTextSerializer.DeserializeSolutionBuildConfiguration(targetToken);
+                var mappedSolutionBuildConfiguration = SolutionFileTextSerializer.DeserializeSolutionBuildConfiguration(valueToken);
+
+                var solutionBuildConfigurationMapping = new SolutionBuildConfigurationMapping
+                {
+                    SolutionBuildConfiguration = solutionBuildConfiguration,
+                    MappedSolutionBuildConfiguration = mappedSolutionBuildConfiguration,
+                };
+
+                solutionConfigurationPlatformsGlobalSection.SolutionBuildConfigurationMappings.Add(solutionBuildConfigurationMapping);
+
+                currentLine = reader.ReadLine().Trim();
+            }
+
+            return solutionConfigurationPlatformsGlobalSection;
+        }
+
+        private static SolutionBuildConfiguration DeserializeSolutionBuildConfiguration(string token)
+        {
+            var tokens = token.Split(Constants.SolutionBuildConfigurationTokenSeparator);
+
+            var buildConfigurationToken = tokens[0].Trim();
+            var platformTargetToken = tokens[1].Trim();
+
+            var buildConfiguration = SolutionUtilities.ToBuildConfiguration(buildConfigurationToken);
+            var platformTarget = SolutionUtilities.ToPlatformTarget(platformTargetToken);
+
+            var solutionBuildConfiguration = new SolutionBuildConfiguration
+            {
+                BuildConfiguration = buildConfiguration,
+                PlatformTarget = platformTarget,
+            };
+            return solutionBuildConfiguration;
+        }
+
+        private static NestedProjectsSolutionFileGlobalSection DeserializeNestedProjectsGlobalSection(TextReader reader, ref string currentLine, PreOrPostSolution preOrPostSolution)
         {
             var nestedProjectGlobalSection = new NestedProjectsSolutionFileGlobalSection
             {
-                Name = sectionName,
+                Name = NestedProjectsSolutionFileGlobalSection.SolutionFileGlobalSectionName,
                 PreOrPostSolution = preOrPostSolution
             };
 
