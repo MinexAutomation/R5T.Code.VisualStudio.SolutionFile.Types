@@ -30,9 +30,7 @@ namespace R5T.Code.VisualStudio.Model
 
         public static SolutionFileProjectReference NewNetCoreOrStandard(string solutionFilePath, string projectFilePath)
         {
-            var solutionDirectoryPath = PathUtilities.GetDirectoryPath(solutionFilePath);
-
-            var solutionDirectoryToDependencyProjectRelativeFilePath = PathUtilities.GetRelativePathDirectoryToFile(solutionDirectoryPath, projectFilePath);
+            var solutionDirectoryToDependencyProjectRelativeFilePath = VsPathUtilities.GetProjectFileRelativeToSolutionDirectoryPath(solutionFilePath, projectFilePath);
 
             var projectName = VsPathUtilities.GetProjectName(projectFilePath);
 
