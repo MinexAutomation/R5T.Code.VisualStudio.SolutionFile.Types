@@ -81,6 +81,10 @@ namespace R5T.Code.VisualStudio.Model
             nestedProjectsGlobalSection.ProjectNestings.Add(projectNesting);
         }
 
+        /// <summary>
+        /// Adds a solution file project reference to the dependencies solution folder of the solution file.
+        /// Acquires the dependencies solution folder if not present, and adds the project nesting entry.
+        /// </summary>
         public static void AddProjectToDependenciesSolutionFolder(this SolutionFile solutionFile, SolutionFileProjectReference projectReference)
         {
             var dependenciesSolutionFolder = solutionFile.AcquireDependenciesSolutionFolder();
@@ -97,6 +101,11 @@ namespace R5T.Code.VisualStudio.Model
             solutionFile.AddProjectReference(projectReference);
         }
 
+        /// <summary>
+        /// Add a solution file project reference to a solution file.
+        /// Adds entries for the project reference to the solution configuration platform section and project configuration platform section.
+        /// Also ensures that the solution has an extensibility goals section.
+        /// </summary>
         public static void AddProjectReference(this SolutionFile solutionFile, SolutionFileProjectReference projectReference)
         {
             solutionFile.SolutionFileProjectReferences.Add(projectReference);
@@ -127,6 +136,9 @@ namespace R5T.Code.VisualStudio.Model
             solutionFile.AddProjectReferenceAsDependency(projectReference);
         }
 
+        /// <summary>
+        /// Adds a project reference to a solution file under the solution dependencies solution folder.
+        /// </summary>
         public static void AddProjectReferenceAsDependency(this SolutionFile solutionFile, SolutionFileProjectReference projectReference)
         {
             solutionFile.AddProjectReference(projectReference);
@@ -147,7 +159,7 @@ namespace R5T.Code.VisualStudio.Model
         }
 
         /// <summary>
-        /// Adds a project reference to the solution's dependencies folder, but checks first to avoid adding duplicates.
+        /// Adds a project reference to the solution's dependencies folder, checking first to avoid adding duplicates.
         /// </summary>
         public static void AddProjectReferenceDependencyChecked(this SolutionFile solutionFile, string solutionFilePath, string projectFilePath)
         {
@@ -156,6 +168,9 @@ namespace R5T.Code.VisualStudio.Model
             solutionFile.AddProjectReferenceDependencyChecked(projectReference);
         }
 
+        /// <summary>
+        /// Adds project files to the solution file under the dependencies solution folder, checking whether the project file already exists to avoid adding duplicates.
+        /// </summary>
         public static void AddProjectReferenceDependenciesChecked(this SolutionFile solutionFile, string solutionFilePath, IEnumerable<string> projectFilePaths)
         {
             foreach (var projectFilePath in projectFilePaths)
